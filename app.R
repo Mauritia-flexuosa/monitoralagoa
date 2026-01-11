@@ -571,19 +571,28 @@ server <- function(input, output, session) {
   })
   
   # Value boxes - STATUS
-  output$status_box <- renderValueBox({
-    ultima <- ifelse(!is.null(valores$ultima_execucao), 
-                     format(valores$ultima_execucao, "%H:%M"), 
-                     "Nunca")
+# Value boxes - STATUS
+output$status_box <- renderValueBox({
+  if (!is.null(valores$ultima_execucao)) {
+    # Converte para o fuso horário de Brasília
+    ultima_formatada <- format(
+      valores$ultima_execucao, 
+      "%H:%M", 
+      tz = "America/Sao_Paulo"
+    )
+    valor <- ultima_formatada
+  } else {
+    valor <- "Nunca"
+  }
     
     valueBox(
-      value = ultima,
-      subtitle = "Última Execução",
-      icon = icon("clock"),
-      color = "blue",
-      width = 12
-    )
-  })
+    value = valor,
+    subtitle = "Última Execução",
+    icon = icon("clock"),
+    color = "blue",
+    width = 12
+  )
+})
   
   # Value boxes - REGISTROS
   output$registros_box <- renderValueBox({
