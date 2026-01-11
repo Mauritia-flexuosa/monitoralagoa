@@ -333,7 +333,8 @@ ui <- dashboardPage(
                       tags$li("Radiação fotossinteticamente ativa (PAR)")
                     ),
                     tags$hr(),
-                    tags$h4("Classificação da Clorofila Baseada em Desvio Padrão:"),
+                    tags$h4("Classificação Baseada em Desvio Padrão:"),
+                    tags$p("Tanto a clorofila quanto o oxigênio dissolvido são classificados usando o mesmo critério:"),
                     tags$ul(
                       tags$li(strong("Muito Baixo:")), 
                       tags$ul(tags$li("Valor < Média - 2 * Desvio Padrão")),
@@ -376,8 +377,8 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) {
   
-  # Função para classificação da CLOROFILA baseada em desvio padrão
-  classificar_clorofila <- function(valores) {
+  # Função genérica para classificação baseada em desvio padrão
+  classificar_variavel <- function(valores) {
     if (length(valores) == 0 || all(is.na(valores))) {
       return(rep(NA, length(valores)))
     }
@@ -395,7 +396,7 @@ server <- function(input, output, session) {
         include.lowest = TRUE)
   }
   
-  # Função para criar histograma com estatísticas
+  # Função para criar histograma com estatísticas - VERSÃO CORRIGIDA
   criar_histograma <- function(dados, variavel, titulo, cor, unidade) {
     if (is.null(dados) || nrow(dados) == 0) {
       return(plotly_empty())
@@ -412,33 +413,98 @@ server <- function(input, output, session) {
     dp <- sd(valores, na.rm = TRUE)
     mediana <- median(valores, na.rm = TRUE)
     
-    # Garantir que o eixo x reflita os valores reais dos dados
-    plot_ly(dados, x = ~get(variavel),
-            type = "histogram",
-            nbinsx = 30,
-            marker = list(color = cor,
-                          line = list(color = 'rgba(0,0,0,0.5)', width = 1)),
-            name = titulo,
-            hoverinfo = 'text',
-            text = ~paste(
-              titulo, ": ", round(get(variavel), ifelse(unidade == "ml/L", 3, 2)), " ", unidade,
-              "<br>Frequência: y"
-            )) %>%
+    # Calcular os bins manualmente para ter controle preciso
+    min_val <- min(valores, na.rm = TRUE)
+    max_val <- max(valores, na.rm = TRUE)
+    
+    # Determinar o número de bins baseado na faixa de valores
+    range_val <- max_val - min_val
+    
+    if (range_val == 0) {
+      return(plotly_empty())
+    }
+    
+    # Ajustar o número de bins baseado na faixa e no tipo de dados
+    if (unidade == "ml/L") {
+      # Para oxigênio dissolvido (valores pequenos)
+      bin_width <- range_val / 20
+      if (bin_width < 0.01) bin_width <- 0.01
+    } else if (unidade == "μg/L") {
+      # Para clorofila
+      bin_width <- range_val / 15
+      if (bin_width < 0.1) bin_width <- 0.1
+    } else if (unidade == "μS/cm") {
+      # Para condutividade
+      bin_width <- range_val / 20
+      if (bin_width < 1) bin_width <- 1
+    } else if (unidade == "°C") {
+      # Para temperatura
+      bin_width <- range_val / 15
+      if (bin_width < 0.1) bin_width <- 0.1
+    } else {
+      # Para PAR
+      bin_width <- range_val / 20
+      if (bin_width < 1) bin_width <- 1
+    }
+    
+    # Criar breaks (limites dos bins)
+    breaks <- seq(from = floor(min_val/bin_width)*bin_width, 
+                  to = ceiling(max_val/bin_width)*bin_width, 
+                  by = bin_width)
+    
+    # Calcular frequências manualmente
+    freq <- hist(valores, breaks = breaks, plot = FALSE)$counts
+    
+    # Criar posições x (centro dos bins)
+    x_pos <- (breaks[-length(breaks)] + breaks[-1]) / 2
+    
+    # Criar texto para hover com intervalo correto
+    hover_text <- paste0(
+      titulo, ": ", 
+      round(breaks[-length(breaks)], ifelse(unidade == "ml/L", 3, 2)), 
+      " a ", 
+      round(breaks[-1], ifelse(unidade == "ml/L", 3, 2)), 
+      " ", unidade,
+      "<br>Frequência: ", freq
+    )
+    
+    # Criar gráfico com barras
+    plot_ly() %>%
+      add_bars(
+        x = x_pos,
+        y = freq,
+        width = bin_width * 0.9,  # 90% da largura para espaçamento
+        marker = list(
+          color = cor,
+          line = list(color = 'rgba(0,0,0,0.5)', width = 1)
+        ),
+        hoverinfo = 'text',
+        text = hover_text,
+        name = titulo
+      ) %>%
       layout(
-        title = paste(titulo, "<br>Média =", round(media, ifelse(unidade == "ml/L", 3, 2)), 
-                      unidade, ", DP =", round(dp, ifelse(unidade == "ml/L", 3, 2)), unidade),
-        xaxis = list(title = paste(titulo, "(", unidade, ")"),
-                     range = c(min(valores, na.rm = TRUE), max(valores, na.rm = TRUE))), # CORREÇÃO: Definir range correto
+        title = paste(
+          titulo, 
+          "<br>Média = ", round(media, ifelse(unidade == "ml/L", 3, 2)), 
+          " ", unidade, 
+          ", DP = ", round(dp, ifelse(unidade == "ml/L", 3, 2)), " ", unidade
+        ),
+        xaxis = list(
+          title = paste(titulo, "(", unidade, ")"),
+          range = c(min_val, max_val),
+          tickformat = ifelse(unidade == "ml/L", ".3f", 
+                              ifelse(unidade == "μg/L", ".1f",
+                                     ifelse(unidade == "°C", ".1f", "d")))
+        ),
         yaxis = list(title = "Frequência"),
-        bargap = 0.1,
+        bargap = 0.05,
         shapes = list(
           list(
             type = "line",
             x0 = media,
             x1 = media,
             y0 = 0,
-            y1 = 1,
-            yref = "paper",
+            y1 = max(freq, na.rm = TRUE),
             line = list(color = "red", width = 2, dash = "dash")
           ),
           list(
@@ -446,8 +512,7 @@ server <- function(input, output, session) {
             x0 = media - dp,
             x1 = media - dp,
             y0 = 0,
-            y1 = 1,
-            yref = "paper",
+            y1 = max(freq, na.rm = TRUE),
             line = list(color = "orange", width = 1.5, dash = "dot")
           ),
           list(
@@ -455,32 +520,28 @@ server <- function(input, output, session) {
             x0 = media + dp,
             x1 = media + dp,
             y0 = 0,
-            y1 = 1,
-            yref = "paper",
+            y1 = max(freq, na.rm = TRUE),
             line = list(color = "orange", width = 1.5, dash = "dot")
           )
         ),
         annotations = list(
           list(
             x = media,
-            y = 1,
-            yref = "paper",
+            y = max(freq, na.rm = TRUE),
             text = paste("Média:", round(media, ifelse(unidade == "ml/L", 3, 2))),
             showarrow = FALSE,
             font = list(color = "red", size = 10)
           ),
           list(
             x = media - dp,
-            y = 0.95,
-            yref = "paper",
+            y = max(freq, na.rm = TRUE) * 0.95,
             text = "Média - DP",
             showarrow = FALSE,
             font = list(color = "orange", size = 9)
           ),
           list(
             x = media + dp,
-            y = 0.95,
-            yref = "paper",
+            y = max(freq, na.rm = TRUE) * 0.95,
             text = "Média + DP",
             showarrow = FALSE,
             font = list(color = "orange", size = 9)
@@ -518,7 +579,7 @@ server <- function(input, output, session) {
         
         if (!is.null(dados_brutos) && nrow(dados_brutos) > 0) {
           
-          # Processar os dados com classificação apenas da clorofila
+          # Processar os dados com classificação para clorofila e oxigênio
           dados_processados <- dados_brutos %>%
             # Garantir que temos as colunas necessárias
             mutate(
@@ -538,10 +599,12 @@ server <- function(input, output, session) {
                                  (chl_3m + chl_4m) / 2, 
                                  coalesce(chl_3m, chl_4m)),
               
-              # Classificar APENAS a clorofila baseado em desvio padrão
-              categoria_chl_3m = classificar_clorofila(chl_3m),
-              categoria_chl_4m = classificar_clorofila(chl_4m),
-              categoria_chl_media = classificar_clorofila(chl_media)
+              # Classificar clorofila e oxigênio baseado em desvio padrão
+              categoria_chl_3m = classificar_variavel(chl_3m),
+              categoria_chl_4m = classificar_variavel(chl_4m),
+              categoria_chl_media = classificar_variavel(chl_media),
+              categoria_do_1m = classificar_variavel(do_1m),
+              categoria_do_3m = classificar_variavel(do_3m)
             ) %>%
             # Ordenar por data
             arrange(data_hora)
@@ -720,7 +783,7 @@ server <- function(input, output, session) {
     }
   })
   
-  # Value boxes - OXIGÊNIO (3.0m) - ÚLTIMO VALOR
+  # Value boxes - OXIGÊNIO (3.0m) - ÚLTIMO VALOR COM CLASSIFICAÇÃO
   output$do_box <- renderValueBox({
     if (!is.null(valores$dados_processados) && nrow(valores$dados_processados) > 0) {
       # Obter o último valor não nulo do oxigênio dissolvido a 3m
@@ -730,19 +793,37 @@ server <- function(input, output, session) {
         slice(1) %>%
         pull(do_3m)
       
-      if (length(ultimo_valor) == 0) ultimo_valor <- 0
+      ultima_categoria <- valores$dados_processados %>%
+        arrange(desc(data_hora)) %>%
+        filter(!is.na(do_3m)) %>%
+        slice(1) %>%
+        pull(categoria_do_3m)
+      
+      if (length(ultimo_valor) == 0) {
+        ultimo_valor <- 0
+        ultima_categoria <- "N/A"
+      }
+      
+      color <- case_when(
+        ultima_categoria == "Muito Alto" ~ "red",
+        ultima_categoria == "Alto" ~ "orange",
+        ultima_categoria == "Moderado" ~ "yellow",
+        ultima_categoria == "Baixo" ~ "green",
+        ultima_categoria == "Muito Baixo" ~ "blue",
+        TRUE ~ "blue"
+      )
       
       valueBox(
         value = sprintf("%.3f ml/L", ultimo_valor),
-        subtitle = "OD 3.0m",
+        subtitle = paste("OD 3.0m (", ultima_categoria, ")"),
         icon = icon("wind"),
-        color = "light-blue",
+        color = color,
         width = 12
       )
     } else {
       valueBox(
         value = "0 ml/L",
-        subtitle = "OD 3.0m",
+        subtitle = "OD 3.0m (N/A)",
         icon = icon("wind"),
         color = "blue",
         width = 12
@@ -858,7 +939,7 @@ server <- function(input, output, session) {
       )
   })
   
-  # Gráfico de oxigênio dissolvido (convertido)
+  # Gráfico de oxigênio dissolvido (convertido) COM CLASSIFICAÇÃO
   output$grafico_do <- renderPlotly({
     req(valores$dados_processados)
     
@@ -869,7 +950,8 @@ server <- function(input, output, session) {
                 hoverinfo = 'text',
                 text = ~paste(
                   "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>OD 1m: ", round(do_1m, 3), "ml/L"
+                  "<br>OD 1m: ", round(do_1m, 3), "ml/L",
+                  "<br>Categoria: ", categoria_do_1m
                 )) %>%
       add_trace(y = ~do_3m, type = 'scatter', mode = 'lines',
                 name = 'OD 3m', 
@@ -877,7 +959,8 @@ server <- function(input, output, session) {
                 hoverinfo = 'text',
                 text = ~paste(
                   "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>OD 3m: ", round(do_3m, 3), "ml/L"
+                  "<br>OD 3m: ", round(do_3m, 3), "ml/L",
+                  "<br>Categoria: ", categoria_do_3m
                 )) %>%
       layout(
         title = "Evolução do Oxigênio Dissolvido (ml/L)",
@@ -940,7 +1023,7 @@ server <- function(input, output, session) {
       )
   })
   
-  # Gráfico detalhado do oxigênio dissolvido
+  # Gráfico detalhado do oxigênio dissolvido COM CLASSIFICAÇÃO
   output$grafico_do_detalhado <- renderPlotly({
     req(valores$dados_processados)
     
@@ -952,7 +1035,8 @@ server <- function(input, output, session) {
                 hoverinfo = 'text',
                 text = ~paste(
                   "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>OD 1.0m: ", round(do_1m, 3), "ml/L"
+                  "<br>OD 1.0m: ", round(do_1m, 3), "ml/L",
+                  "<br>Categoria: ", categoria_do_1m
                 )) %>%
       add_trace(y = ~do_3m, type = 'scatter', mode = 'lines+markers',
                 name = 'OD 3.0m', 
@@ -961,7 +1045,8 @@ server <- function(input, output, session) {
                 hoverinfo = 'text',
                 text = ~paste(
                   "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>OD 3.0m: ", round(do_3m, 3), "ml/L"
+                  "<br>OD 3.0m: ", round(do_3m, 3), "ml/L",
+                  "<br>Categoria: ", categoria_do_3m
                 )) %>%
       layout(
         title = "Série Temporal Detalhada do Oxigênio Dissolvido",
@@ -973,7 +1058,7 @@ server <- function(input, output, session) {
       )
   })
   
-  # Tabela de dados
+  # Tabela de dados COM STATUS PARA CLOROFILA E OXIGÊNIO
   output$tabela_dados <- renderDT({
     req(valores$dados_processados)
     
@@ -990,18 +1075,35 @@ server <- function(input, output, session) {
         cond_1m = round(cond_1m, 0),
         cond_3m = round(cond_3m, 0),
         PAR = round(PAR, 0),
+        # Fatores para ordenação
         categoria_chl_3m = factor(categoria_chl_3m, 
                                   levels = c("Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto")),
-        status = case_when(
+        categoria_do_3m = factor(categoria_do_3m,
+                                 levels = c("Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto")),
+        # Status HTML para clorofila
+        status_chl = case_when(
           categoria_chl_3m == "Muito Alto" ~ '<span class="badge bg-danger">MUITO ALTO</span>',
           categoria_chl_3m == "Alto" ~ '<span class="badge bg-warning">ALTO</span>',
           categoria_chl_3m == "Moderado" ~ '<span class="badge bg-info">MODERADO</span>',
           categoria_chl_3m == "Baixo" ~ '<span class="badge bg-success">BAIXO</span>',
-          categoria_chl_3m == "Muito Baixo" ~ '<span class="badge bg-secondary">MUITO BAIXO</span>'
+          categoria_chl_3m == "Muito Baixo" ~ '<span class="badge bg-secondary">MUITO BAIXO</span>',
+          TRUE ~ '<span class="badge bg-secondary">N/A</span>'
+        ),
+        # Status HTML para oxigênio
+        status_do = case_when(
+          categoria_do_3m == "Muito Alto" ~ '<span class="badge bg-danger">MUITO ALTO</span>',
+          categoria_do_3m == "Alto" ~ '<span class="badge bg-warning">ALTO</span>',
+          categoria_do_3m == "Moderado" ~ '<span class="badge bg-info">MODERADO</span>',
+          categoria_do_3m == "Baixo" ~ '<span class="badge bg-success">BAIXO</span>',
+          categoria_do_3m == "Muito Baixo" ~ '<span class="badge bg-secondary">MUITO BAIXO</span>',
+          TRUE ~ '<span class="badge bg-secondary">N/A</span>'
         )
       ) %>%
-      select(data_hora, chl_3m, categoria_chl_3m, status, chl_4m, temp_1m, temp_3m, 
-             do_1m, do_3m, cond_1m, cond_3m, PAR)
+      select(data_hora, 
+             chl_3m, categoria_chl_3m, status_chl,
+             do_3m, categoria_do_3m, status_do,
+             chl_4m, temp_1m, temp_3m, 
+             do_1m, cond_1m, cond_3m, PAR)
     
     datatable(
       dados_tabela,
@@ -1009,16 +1111,16 @@ server <- function(input, output, session) {
         pageLength = 10,
         autoWidth = TRUE,
         columnDefs = list(
-          list(className = 'dt-center', targets = 0:11)
+          list(className = 'dt-center', targets = 0:13)
         )
       ),
       escape = FALSE,
       rownames = FALSE,
-      caption = "Dados Processados da API SIMCOSTA"
+      caption = "Dados Processados da API SIMCOSTA - Com Status de Clorofila e Oxigênio"
     )
   })
   
-  # Resumo dos dados
+  # Resumo dos dados COM ESTATÍSTICAS DE OXIGÊNIO
   output$resumo_dados <- renderPrint({
     req(valores$dados_processados)
     
@@ -1043,6 +1145,21 @@ server <- function(input, output, session) {
     cat("  Média + 2DP: ", round(media_chl_3m + 2*dp_chl_3m, 2), "μg/L (Alto até aqui)\n")
     cat("  Acima: Muito Alto\n\n")
     
+    # Oxigênio Dissolvido 3.0m
+    media_do_3m <- mean(valores$dados_processados$do_3m, na.rm = TRUE)
+    dp_do_3m <- sd(valores$dados_processados$do_3m, na.rm = TRUE)
+    cat("Oxigênio Dissolvido a 3.0m (ml/L):\n")
+    cat("  Média:    ", round(media_do_3m, 3), "ml/L\n")
+    cat("  Mediana:  ", round(median(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n")
+    cat("  Mínimo:   ", round(min(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n")
+    cat("  Máximo:   ", round(max(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n")
+    cat("  Desvio:   ", round(dp_do_3m, 3), "ml/L\n")
+    cat("  Média - 2DP: ", round(media_do_3m - 2*dp_do_3m, 3), "ml/L (Muito Baixo até aqui)\n")
+    cat("  Média - DP:  ", round(media_do_3m - dp_do_3m, 3), "ml/L (Baixo até aqui)\n")
+    cat("  Média + DP:  ", round(media_do_3m + dp_do_3m, 3), "ml/L (Moderado até aqui)\n")
+    cat("  Média + 2DP: ", round(media_do_3m + 2*dp_do_3m, 3), "ml/L (Alto até aqui)\n")
+    cat("  Acima: Muito Alto\n\n")
+    
     # Clorofila 4.5m
     media_chl_4m <- mean(valores$dados_processados$chl_4m, na.rm = TRUE)
     cat("Clorofila a 4.5m:\n")
@@ -1064,28 +1181,37 @@ server <- function(input, output, session) {
     cat("  Mínimo:   ", round(min(valores$dados_processados$temp_3m, na.rm = TRUE), 1), "°C\n")
     cat("  Máximo:   ", round(max(valores$dados_processados$temp_3m, na.rm = TRUE), 1), "°C\n\n")
     
-    # Oxigênio 3.0m (convertido)
-    cat("Oxigênio Dissolvido a 3.0m (ml/L):\n")
-    cat("  Média:    ", round(mean(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n")
-    cat("  Mínimo:   ", round(min(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n")
-    cat("  Máximo:   ", round(max(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n\n")
-    
     # Classificação da Clorofila 3.0m
     cat("Classificação da Clorofila 3.0m (baseado em desvio padrão):\n")
-    categorias <- table(valores$dados_processados$categoria_chl_3m)
+    categorias_chl <- table(valores$dados_processados$categoria_chl_3m)
     for (cat in c("Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto")) {
-      if (cat %in% names(categorias)) {
+      if (cat %in% names(categorias_chl)) {
         cat(sprintf("  %-12s: %4d registros (%5.1f%%)\n", 
                     cat, 
-                    categorias[cat], 
-                    categorias[cat]/nrow(valores$dados_processados)*100))
+                    categorias_chl[cat], 
+                    categorias_chl[cat]/nrow(valores$dados_processados)*100))
+      } else {
+        cat(sprintf("  %-12s: %4d registros (%5.1f%%)\n", cat, 0, 0))
+      }
+    }
+    cat("\n")
+    
+    # Classificação do Oxigênio Dissolvido 3.0m
+    cat("Classificação do Oxigênio Dissolvido 3.0m (baseado em desvio padrão):\n")
+    categorias_do <- table(valores$dados_processados$categoria_do_3m)
+    for (cat in c("Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto")) {
+      if (cat %in% names(categorias_do)) {
+        cat(sprintf("  %-12s: %4d registros (%5.1f%%)\n", 
+                    cat, 
+                    categorias_do[cat], 
+                    categorias_do[cat]/nrow(valores$dados_processados)*100))
       } else {
         cat(sprintf("  %-12s: %4d registros (%5.1f%%)\n", cat, 0, 0))
       }
     }
   })
   
-  # Histograma da clorofila 3m
+  # Histograma da clorofila 3m - VERSÃO CORRIGIDA
   output$grafico_hist_chl <- renderPlotly({
     req(valores$dados_processados)
     criar_histograma(valores$dados_processados, "chl_3m", "Clorofila 3.0m", 
@@ -1105,7 +1231,7 @@ server <- function(input, output, session) {
           "> ", round(media_chl + 2*dp_chl, 2), " = Muito Alto")
   })
   
-  # Histograma detalhado do oxigênio dissolvido (3.0m)
+  # Histograma detalhado do oxigênio dissolvido (3.0m) - VERSÃO CORRIGIDA
   output$grafico_hist_do_detalhado <- renderPlotly({
     req(valores$dados_processados)
     criar_histograma(valores$dados_processados, "do_3m", "Oxigênio Dissolvido 3.0m", 
@@ -1118,26 +1244,28 @@ server <- function(input, output, session) {
     media_do <- mean(valores$dados_processados$do_3m, na.rm = TRUE)
     dp_do <- sd(valores$dados_processados$do_3m, na.rm = TRUE)
     
-    paste("Oxigênio Dissolvido 3.0m: Média = ", round(media_do, 3), "ml/L | DP = ", 
-          round(dp_do, 3), "ml/L | Mín = ", round(min(valores$dados_processados$do_3m, na.rm = TRUE), 3),
-          "ml/L | Máx = ", round(max(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L")
+    paste("Classificação OD: Valores < ", round(media_do - 2*dp_do, 3), " = Muito Baixo | ",
+          round(media_do - 2*dp_do, 3), " a ", round(media_do - dp_do, 3), " = Baixo | ",
+          round(media_do - dp_do, 3), " a ", round(media_do + dp_do, 3), " = Moderado | ",
+          round(media_do + dp_do, 3), " a ", round(media_do + 2*dp_do, 3), " = Alto | ",
+          "> ", round(media_do + 2*dp_do, 3), " = Muito Alto")
   })
   
-  # Histograma da condutividade (3.0m)
+  # Histograma da condutividade (3.0m) - VERSÃO CORRIGIDA
   output$grafico_hist_cond <- renderPlotly({
     req(valores$dados_processados)
     criar_histograma(valores$dados_processados, "cond_3m", "Condutividade 3.0m", 
                      'rgba(155, 89, 182, 0.7)', "μS/cm")
   })
   
-  # Histograma da temperatura (3.0m)
+  # Histograma da temperatura (3.0m) - VERSÃO CORRIGIDA
   output$grafico_hist_temp <- renderPlotly({
     req(valores$dados_processados)
     criar_histograma(valores$dados_processados, "temp_3m", "Temperatura 3.0m", 
                      'rgba(231, 76, 60, 0.7)', "°C")
   })
   
-  # Histograma do PAR
+  # Histograma do PAR - VERSÃO CORRIGIDA
   output$grafico_hist_par <- renderPlotly({
     req(valores$dados_processados)
     criar_histograma(valores$dados_processados, "PAR", "PAR", 
