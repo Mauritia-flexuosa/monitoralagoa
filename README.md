@@ -12,6 +12,8 @@ Estrutura de Arquivos
 
     API.R - Script para buscar dados da API SIMCOSTA
 
+    Deploy.R - Deploy via rsconnect
+    
 ⚙️ Tecnologias
 
     R 4.1+
@@ -22,6 +24,7 @@ Estrutura de Arquivos
 
     shinyapps.io (hospedagem)
 
+ 
 📊 Dados
 
 Fonte: API SIMCOSTA - https://simcosta.furg.br/
