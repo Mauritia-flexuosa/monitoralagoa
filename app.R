@@ -1,4 +1,4 @@
-# app.R - Dashboard Shiny usando EXATAMENTE seu script API.R
+# app.R - Dashboard Shiny
 library(shiny)
 library(shinydashboard)
 library(plotly)
