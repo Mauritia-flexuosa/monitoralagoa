@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: monitoramento-simcosta
+    name: monitoralagoa
     env: r
     plan: free
     runtime: r
