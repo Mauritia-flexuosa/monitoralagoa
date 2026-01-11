@@ -4,6 +4,11 @@
 
 Dashboard Shiny para monitoramento da qualidade da água da Lagoa da Conceição - Florianópolis, SC.
 
+
+[![Deploy to shinyapps.io](https://github.com/Mauritia-Flexuosa/monitoralagoa/actions/workflows/deploy.yml/badge.svg)](https://github.com/Mauritia-Flexuosa/monitoralagoa/actions/workflows/deploy.yml)
+
+**App online:** https://marciocure.shinyapps.io/monitoralagoa/
+
 Estrutura de Arquivos
 
     app.R - Código principal do Shiny
@@ -24,7 +29,7 @@ Estrutura de Arquivos
 
     Plotly (gráficos interativos)
 
-    Render.com (hospedagem)
+    shinyapps.io (hospedagem)
 
 📊 Dados
 
