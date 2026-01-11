@@ -15,11 +15,8 @@ Estrutura de Arquivos
 
     API.R - Script para buscar dados da API SIMCOSTA
 
-    requirements.R - Dependências do R
+    .github/workflows - Configuração .yml
 
-    render.yaml - Configuração do Render.com
-
-    .Rprofile - Configuração do ambiente R
 
 ⚙️ Tecnologias
 
