@@ -1,4 +1,12 @@
-# monitoralagoa
+# monitoralagoa _version 2.0_
+
+Melhorias da nova versão:
+- Simplificação do dashboard para melhorar a legibilidade
+- Redução da quantidade de gráficos
+- Inclusão de gráfico único de série temporal com seleção dinâmica de variável
+- Reorganização dos value boxes
+- Inclusão de mensagem automática sobre a situação atual da lagoa
+- Parâmetros de Oxigênio dissolvido segundo a Resolução CONAMA 357/2005 para águas salobras Classe I
 
 ## Monitoramento da Qualidade da água da Lagoa da Conceição
 
