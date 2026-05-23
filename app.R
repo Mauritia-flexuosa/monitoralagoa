@@ -21,7 +21,6 @@ if (!require("reshape2")) install.packages("reshape2", repos = "http://cran.rstu
 if (!require("httr")) install.packages("httr", repos = "http://cran.rstudio.com/")
 if (!require("jsonlite")) install.packages("jsonlite", repos = "http://cran.rstudio.com/")
 
-# CSS customizado com fonte reduzida para value boxes
 css <- "
 .badge {
   padding: 4px 8px;
@@ -61,7 +60,7 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
       menuItem("Dados", tabName = "dados", icon = icon("table")),
-      menuItem("Análises", tabName = "analises", icon = icon("chart-bar")),
+#      menuItem("Análises", tabName = "analises", icon = icon("chart-bar")),
       menuItem("Correlações", tabName = "correlacoes", icon = icon("chart-line")),
       menuItem("Sobre", tabName = "sobre", icon = icon("info-circle"))
     ),
@@ -79,21 +78,21 @@ ui <- dashboardPage(
         # Registros
         valueBoxOutput("registros_box", width = 12),
         br(),
+      
+        # Oxigênio
+        valueBoxOutput("do_box", width = 12),
+        br(),
         
         # Clorofila
         valueBoxOutput("chl_box", width = 12),
-        br(),
-        
-        # Condutividade
-        valueBoxOutput("cond_box", width = 12),
         br(),
         
         # Temperatura
         valueBoxOutput("temp_box", width = 12),
         br(),
         
-        # Oxigênio
-        valueBoxOutput("do_box", width = 12),
+        # Condutividade
+        valueBoxOutput("cond_box", width = 12),
         br(),
         
         # PAR
@@ -116,50 +115,49 @@ ui <- dashboardPage(
       tabItem(tabName = "dashboard",
               fluidRow(
                 box(
-                  title = "Série Temporal da Clorofila",
+                  title = "Situação Atual da Lagoa",
                   status = "primary",
                   solidHeader = TRUE,
                   width = 12,
-                  plotlyOutput("grafico_serie"),
-                  tags$div(
-                    style = "margin-top: 10px; font-style: italic; color: #666;",
-                    textOutput("info_serie")
-                  )
+                  htmlOutput("mensagem_qualidade")
                 )
               ),
-              fluidRow(
-                box(
-                  title = "Temperatura da Água",
-                  status = "warning",
-                  solidHeader = TRUE,
-                  width = 6,
-                  plotlyOutput("grafico_temp")
-                ),
-                box(
-                  title = "Oxigênio Dissolvido (ml/L)",
-                  status = "info",
-                  solidHeader = TRUE,
-                  width = 6,
-                  plotlyOutput("grafico_do")
-                )
-              ),
-              fluidRow(
-                box(
-                  title = "Condutividade",
-                  status = "success",
-                  solidHeader = TRUE,
-                  width = 6,
-                  plotlyOutput("grafico_cond")
-                ),
-                box(
-                  title = "Radiação PAR",
-                  status = "danger",
-                  solidHeader = TRUE,
-                  width = 6,
-                  plotlyOutput("grafico_par")
-                )
-              )
-      ),
+	              fluidRow(
+	                box(
+	                  title = "Série Temporal",
+	                  status = "primary",
+	                  solidHeader = TRUE,
+	                  width = 12,
+	                  fluidRow(
+	                    column(4,
+	                           selectInput("variavel_serie", 
+	                                       "Variável para o Gráfico:",
+	                                       choices = c("Clorofila 3.0m" = "chl_3m",
+	                                                   "Clorofila 4.5m" = "chl_4m",
+	                                                   "Temperatura 1.0m" = "temp_1m",
+	                                                   "Temperatura 3.0m" = "temp_3m",
+	                                                   "Oxigênio Dissolvido 1.0m" = "do_1m",
+	                                                   "Oxigênio Dissolvido 3.0m" = "do_3m",
+	                                                   "Condutividade 1.0m" = "cond_1m",
+	                                                   "Condutividade 3.0m" = "cond_3m",
+	                                                   "PAR" = "PAR"),
+	                                       selected = "chl_3m")
+	                    ),
+	                    column(4,
+	                           dateInput("data_inicio", "Data de Início:", value = Sys.Date() - 60)
+	                    ),
+	                    column(4,
+	                           dateInput("data_fim", "Data de Fim:", value = Sys.Date())
+	                    )
+	                  ),
+	                  plotlyOutput("grafico_serie_unica"),
+	                  tags$div(
+	                    style = "margin-top: 10px; font-style: italic; color: #666;",
+	                    textOutput("info_serie_unica")
+	                  )
+	                )
+	              )
+	      ),
       
       # Tab 2: Dados
       tabItem(tabName = "dados",
@@ -187,64 +185,9 @@ ui <- dashboardPage(
       ),
       
       # Tab 3: Análises
-      tabItem(tabName = "analises",
-              fluidRow(
-                box(
-                  title = "Distribuição de Frequência da Clorofila 3.0m",
-                  status = "primary",
-                  solidHeader = TRUE,
-                  width = 6,
-                  plotlyOutput("grafico_hist_chl"),
-                  tags$div(
-                    style = "margin-top: 10px; font-style: italic; color: #666; font-size: 12px;",
-                    textOutput("info_hist_chl")
-                  )
-                ),
-                box(
-                  title = "Distribuição de Frequência do Oxigênio Dissolvido 3.0m",
-                  status = "info",
-                  solidHeader = TRUE,
-                  width = 6,
-                  plotlyOutput("grafico_hist_do_detalhado"),
-                  tags$div(
-                    style = "margin-top: 10px; font-style: italic; color: #666; font-size: 12px;",
-                    textOutput("info_hist_do")
-                  )
-                )
-              ),
-              fluidRow(
-                box(
-                  title = "Distribuição de Frequência da Condutividade 3.0m",
-                  status = "success",
-                  solidHeader = TRUE,
-                  width = 4,
-                  plotlyOutput("grafico_hist_cond")
-                ),
-                box(
-                  title = "Distribuição de Frequência da Temperatura 3.0m",
-                  status = "warning",
-                  solidHeader = TRUE,
-                  width = 4,
-                  plotlyOutput("grafico_hist_temp")
-                ),
-                box(
-                  title = "Distribuição de Frequência do PAR",
-                  status = "danger",
-                  solidHeader = TRUE,
-                  width = 4,
-                  plotlyOutput("grafico_hist_par")
-                )
-              ),
-              fluidRow(
-                box(
-                  title = "Série Temporal Detalhada do Oxigênio Dissolvido",
-                  status = "info",
-                  solidHeader = TRUE,
-                  width = 12,
-                  plotlyOutput("grafico_do_detalhado")
-                )
-              )
-      ),
+      # tabItem(tabName = "analises",
+      # 
+      # ),
       
       # Tab 4: Correlações
       tabItem(tabName = "correlacoes",
@@ -333,19 +276,27 @@ ui <- dashboardPage(
                       tags$li("Radiação fotossinteticamente ativa (PAR)")
                     ),
                     tags$hr(),
-                    tags$h4("Classificação Baseada em Desvio Padrão:"),
-                    tags$p("Tanto a clorofila quanto o oxigênio dissolvido são classificados usando o mesmo critério:"),
+                    tags$h4("Classificação da Qualidade da Água:"),
+                    tags$p("A qualidade da água para Clorofila, Oxigênio Dissolvido (OD) e Temperatura é classificada com base em thresholds ambientais específicos para lagunas costeiras, conforme a Resolução CONAMA 357/2005 para águas salobras Classe I e recomendações para Clorofila-a e Temperatura."),
                     tags$ul(
-                      tags$li(strong("Muito Baixo:")), 
-                      tags$ul(tags$li("Valor < Média - 2 * Desvio Padrão")),
-                      tags$li(strong("Baixo:")), 
-                      tags$ul(tags$li("Média - 2 * DP ≤ Valor < Média - 1 * DP")),
-                      tags$li(strong("Moderado:")), 
-                      tags$ul(tags$li("Média - 1 * DP ≤ Valor < Média + 1 * DP")),
-                      tags$li(strong("Alto:")), 
-                      tags$ul(tags$li("Média + 1 * DP ≤ Valor < Média + 2 * DP")),
-                      tags$li(strong("Muito Alto:")), 
-                      tags$ul(tags$li("Valor ≥ Média + 2 * Desvio Padrão"))
+                      tags$li(strong("Oxigênio Dissolvido (OD) em ml/L:")), 
+                      tags$ul(
+                        tags$li("Ruim: < 5"),
+                        tags$li("Atenção: 5 – 6"),
+                        tags$li("Boa: > 6")
+                      ),
+                      tags$li(strong("Clorofila-a em μg/L:")), 
+                      tags$ul(
+                        tags$li("Ruim: > 30"),
+                        tags$li("Atenção: 10 – 30"),
+                        tags$li("Boa: < 10")
+                      ),
+                      tags$li(strong("Temperatura em °C:")), 
+                      tags$ul(
+                        tags$li("Ruim: > 30"),
+                        tags$li("Atenção: 26 – 30"),
+                        tags$li("Boa: < 26")
+                      )
                     ),
                     tags$hr(),
                     tags$h4("Conversão de Oxigênio Dissolvido:"),
@@ -354,14 +305,15 @@ ui <- dashboardPage(
                     tags$h4("Como usar:"),
                     tags$ol(
                       tags$li("Clique em 'Executar API.R' para buscar os dados mais recentes"),
+                      tags$li("Escolha o período de tempo para mostrar no gráfico"),
                       tags$li("Visualize os gráficos na aba Dashboard"),
                       tags$li("Consulte os dados brutos na aba Dados"),
-                      tags$li("Analise distribuições na aba Análises"),
+
                       tags$li("Veja correlações na aba Correlações")
                     ),
                     tags$hr(),
                     tags$h4("Detalhes Técnicos:"),
-                    tags$p("Período padrão: Últimos 60 dias"),
+                    tags$p("Período padrão: Últimos 365 dias, ou conforme disponibilidade de dados da bóia"),
                     tags$p("Boia padrão: ID 40"),
                     tags$p("Frequência de atualização: Manual (clique no botão)"),
                     tags$p("Fonte dos dados: https://simcosta.furg.br/"),
@@ -377,178 +329,86 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) {
   
-  # Função genérica para classificação baseada em desvio padrão
-  classificar_variavel <- function(valores) {
-    if (length(valores) == 0 || all(is.na(valores))) {
-      return(rep(NA, length(valores)))
+  # Função para classificar a qualidade da água com base em thresholds ambientais
+  classificar_qualidade <- function(variavel, valor) {
+    if (is.na(valor)) {
+      return("N/A")
     }
     
-    media <- mean(valores, na.rm = TRUE)
-    dp <- sd(valores, na.rm = TRUE)
-    
-    if (is.na(dp) || dp == 0) {
-      return(rep("Moderado", length(valores)))
+    if (variavel == "OD") {
+      # Oxigênio Dissolvido (ml/L)
+      if (valor < 5) {
+        return("Ruim")
+      } else if (valor >= 5 && valor <= 6) {
+        return("Atenção")
+      } else {
+        return("Boa")
+      }
+    } else if (variavel == "Clorofila") {
+      # Clorofila-a (μg/L)
+      if (valor > 30) {
+        return("Ruim")
+      } else if (valor >= 10 && valor <= 30) {
+        return("Atenção")
+      } else {
+        return("Boa")
+      }
+    } else if (variavel == "Temperatura") {
+      # Temperatura (°C)
+      if (valor > 30) {
+        return("Ruim")
+      } else if (valor >= 26 && valor <= 30) {
+        return("Atenção")
+      } else {
+        return("Boa")
+      }
+    } else {
+      return("N/A") # Para outras variáveis não classificadas
     }
-    
-    cut(valores,
-        breaks = c(-Inf, media - 2*dp, media - dp, media + dp, media + 2*dp, Inf),
-        labels = c("Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto"),
-        include.lowest = TRUE)
   }
   
-  # Função para criar histograma com estatísticas - VERSÃO CORRIGIDA
-  criar_histograma <- function(dados, variavel, titulo, cor, unidade) {
-    if (is.null(dados) || nrow(dados) == 0) {
-      return(plotly_empty())
-    }
+  # Função para gerar mensagem de qualidade da água
+
+  gerar_mensagem_qualidade <- function(od, chl, temp) {
     
-    valores <- dados[[variavel]]
-    valores <- valores[!is.na(valores)]
+    status_od <- classificar_qualidade("OD", od)
+    status_chl <- classificar_qualidade("Clorofila", chl)
+    status_temp <- classificar_qualidade("Temperatura", temp)
     
-    if (length(valores) == 0) {
-      return(plotly_empty())
-    }
+    statuses <- c(status_od, status_chl, status_temp)
     
-    media <- mean(valores, na.rm = TRUE)
-    dp <- sd(valores, na.rm = TRUE)
-    mediana <- median(valores, na.rm = TRUE)
-    
-    # Calcular os bins manualmente para ter controle preciso
-    min_val <- min(valores, na.rm = TRUE)
-    max_val <- max(valores, na.rm = TRUE)
-    
-    # Determinar o número de bins baseado na faixa de valores
-    range_val <- max_val - min_val
-    
-    if (range_val == 0) {
-      return(plotly_empty())
-    }
-    
-    # Ajustar o número de bins baseado na faixa e no tipo de dados
-    if (unidade == "ml/L") {
-      # Para oxigênio dissolvido (valores pequenos)
-      bin_width <- range_val / 20
-      if (bin_width < 0.01) bin_width <- 0.01
-    } else if (unidade == "μg/L") {
-      # Para clorofila
-      bin_width <- range_val / 15
-      if (bin_width < 0.1) bin_width <- 0.1
-    } else if (unidade == "μS/cm") {
-      # Para condutividade
-      bin_width <- range_val / 20
-      if (bin_width < 1) bin_width <- 1
-    } else if (unidade == "°C") {
-      # Para temperatura
-      bin_width <- range_val / 15
-      if (bin_width < 0.1) bin_width <- 0.1
+    if ("Ruim" %in% statuses) {
+      
+      return(list(
+        texto = paste0(
+          "⚠️ <b>Qualidade da água RUIM.</b><br>",
+          "Condições inadequadas detectadas em pelo menos uma variável monitorada."
+        ),
+        cor = "#dc3545"
+      ))
+      
+    } else if ("Atenção" %in% statuses) {
+      
+      return(list(
+        texto = paste0(
+          "⚠️ <b>Qualidade da água em ATENÇÃO.</b><br>",
+          "Algumas variáveis apresentam valores fora da faixa ideal."
+        ),
+        cor = "#ffc107"
+      ))
+      
     } else {
-      # Para PAR
-      bin_width <- range_val / 20
-      if (bin_width < 1) bin_width <- 1
+      
+      return(list(
+        texto = paste0(
+          "✅ <b>Qualidade da água BOA.</b><br>",
+          "Os parâmetros monitorados estão dentro da faixa esperada."
+        ),
+        cor = "#28a745"
+      ))
     }
-    
-    # Criar breaks (limites dos bins)
-    breaks <- seq(from = floor(min_val/bin_width)*bin_width, 
-                  to = ceiling(max_val/bin_width)*bin_width, 
-                  by = bin_width)
-    
-    # Calcular frequências manualmente
-    freq <- hist(valores, breaks = breaks, plot = FALSE)$counts
-    
-    # Criar posições x (centro dos bins)
-    x_pos <- (breaks[-length(breaks)] + breaks[-1]) / 2
-    
-    # Criar texto para hover com intervalo correto
-    hover_text <- paste0(
-      titulo, ": ", 
-      round(breaks[-length(breaks)], ifelse(unidade == "ml/L", 3, 2)), 
-      " a ", 
-      round(breaks[-1], ifelse(unidade == "ml/L", 3, 2)), 
-      " ", unidade,
-      "<br>Frequência: ", freq
-    )
-    
-    # Criar gráfico com barras
-    plot_ly() %>%
-      add_bars(
-        x = x_pos,
-        y = freq,
-        width = bin_width * 0.9,  # 90% da largura para espaçamento
-        marker = list(
-          color = cor,
-          line = list(color = 'rgba(0,0,0,0.5)', width = 1)
-        ),
-        hoverinfo = 'text',
-        text = hover_text,
-        name = titulo
-      ) %>%
-      layout(
-        title = paste(
-          titulo, 
-          "<br>Média = ", round(media, ifelse(unidade == "ml/L", 3, 2)), 
-          " ", unidade, 
-          ", DP = ", round(dp, ifelse(unidade == "ml/L", 3, 2)), " ", unidade
-        ),
-        xaxis = list(
-          title = paste(titulo, "(", unidade, ")"),
-          range = c(min_val, max_val),
-          tickformat = ifelse(unidade == "ml/L", ".3f", 
-                              ifelse(unidade == "μg/L", ".1f",
-                                     ifelse(unidade == "°C", ".1f", "d")))
-        ),
-        yaxis = list(title = "Frequência"),
-        bargap = 0.05,
-        shapes = list(
-          list(
-            type = "line",
-            x0 = media,
-            x1 = media,
-            y0 = 0,
-            y1 = max(freq, na.rm = TRUE),
-            line = list(color = "red", width = 2, dash = "dash")
-          ),
-          list(
-            type = "line",
-            x0 = media - dp,
-            x1 = media - dp,
-            y0 = 0,
-            y1 = max(freq, na.rm = TRUE),
-            line = list(color = "orange", width = 1.5, dash = "dot")
-          ),
-          list(
-            type = "line",
-            x0 = media + dp,
-            x1 = media + dp,
-            y0 = 0,
-            y1 = max(freq, na.rm = TRUE),
-            line = list(color = "orange", width = 1.5, dash = "dot")
-          )
-        ),
-        annotations = list(
-          list(
-            x = media,
-            y = max(freq, na.rm = TRUE),
-            text = paste("Média:", round(media, ifelse(unidade == "ml/L", 3, 2))),
-            showarrow = FALSE,
-            font = list(color = "red", size = 10)
-          ),
-          list(
-            x = media - dp,
-            y = max(freq, na.rm = TRUE) * 0.95,
-            text = "Média - DP",
-            showarrow = FALSE,
-            font = list(color = "orange", size = 9)
-          ),
-          list(
-            x = media + dp,
-            y = max(freq, na.rm = TRUE) * 0.95,
-            text = "Média + DP",
-            showarrow = FALSE,
-            font = list(color = "orange", size = 9)
-          )
-        )
-      )
   }
+  
   
   # Função auxiliar para operador %||%
   `%||%` <- function(x, y) if (!is.null(x) && length(x) > 0) x else y
@@ -571,7 +431,7 @@ server <- function(input, output, session) {
     
     tryCatch({
       # Executar o script API.R no ambiente isolado
-      source("API.R", local = env_api)
+      source("./API.R", local = env_api)
       
       # Verificar se a variável 'dados' foi criada
       if (exists("dados", envir = env_api)) {
@@ -600,11 +460,11 @@ server <- function(input, output, session) {
                                  coalesce(chl_3m, chl_4m)),
               
               # Classificar clorofila e oxigênio baseado em desvio padrão
-              categoria_chl_3m = classificar_variavel(chl_3m),
-              categoria_chl_4m = classificar_variavel(chl_4m),
-              categoria_chl_media = classificar_variavel(chl_media),
-              categoria_do_1m = classificar_variavel(do_1m),
-              categoria_do_3m = classificar_variavel(do_3m)
+              categoria_chl_3m = sapply(chl_3m, function(x) classificar_qualidade("Clorofila", x)),
+              categoria_do_1m = sapply(do_1m, function(x) classificar_qualidade("OD", x)),
+              categoria_do_3m = sapply(do_3m, function(x) classificar_qualidade("OD", x)),
+              categoria_temp_1m = sapply(temp_1m, function(x) classificar_qualidade("Temperatura", x)),
+              categoria_temp_3m = sapply(temp_3m, function(x) classificar_qualidade("Temperatura", x))
             ) %>%
             # Ordenar por data
             arrange(data_hora)
@@ -697,11 +557,9 @@ server <- function(input, output, session) {
       }
       
       color <- case_when(
-        ultima_categoria == "Muito Alto" ~ "red",
-        ultima_categoria == "Alto" ~ "orange",
-        ultima_categoria == "Moderado" ~ "yellow",
-        ultima_categoria == "Baixo" ~ "green",
-        ultima_categoria == "Muito Baixo" ~ "blue",
+        ultima_categoria == "Ruim" ~ "red",
+        ultima_categoria == "Atenção" ~ "orange",
+        ultima_categoria == "Boa" ~ "green",
         TRUE ~ "blue"
       )
       
@@ -762,14 +620,30 @@ server <- function(input, output, session) {
         filter(!is.na(temp_3m)) %>%
         slice(1) %>%
         pull(temp_3m)
+        
+      ultima_categoria <- valores$dados_processados %>%
+        arrange(desc(data_hora)) %>%
+        filter(!is.na(temp_3m)) %>%
+        slice(1) %>%
+        pull(categoria_temp_3m)
       
-      if (length(ultimo_valor) == 0) ultimo_valor <- 0
+      if (length(ultimo_valor) == 0) {
+        ultimo_valor <- 0
+        ultima_categoria <- "N/A"
+      }
+      
+      color <- case_when(
+        ultima_categoria == "Ruim" ~ "red",
+        ultima_categoria == "Atenção" ~ "orange",
+        ultima_categoria == "Boa" ~ "green",
+        TRUE ~ "blue"
+      )
       
       valueBox(
         value = sprintf("%.1f °C", ultimo_valor),
-        subtitle = "Temperatura 3.0m",
+        subtitle = paste("Temperatura 3.0m (", ultima_categoria, ")"),
         icon = icon("thermometer-half"),
-        color = "yellow",
+        color = color,
         width = 12
       )
     } else {
@@ -805,11 +679,9 @@ server <- function(input, output, session) {
       }
       
       color <- case_when(
-        ultima_categoria == "Muito Alto" ~ "red",
-        ultima_categoria == "Alto" ~ "orange",
-        ultima_categoria == "Moderado" ~ "yellow",
-        ultima_categoria == "Baixo" ~ "green",
-        ultima_categoria == "Muito Baixo" ~ "blue",
+        ultima_categoria == "Ruim" ~ "red",
+        ultima_categoria == "Atenção" ~ "orange",
+        ultima_categoria == "Boa" ~ "green",
         TRUE ~ "blue"
       )
       
@@ -865,42 +737,94 @@ server <- function(input, output, session) {
     valores$status
   })
   
-  # Gráfico de série temporal da clorofila
-  output$grafico_serie <- renderPlotly({
+  output$mensagem_qualidade <- renderUI({
+    
     req(valores$dados_processados)
     
-    plot_ly(valores$dados_processados, x = ~data_hora) %>%
-      add_trace(y = ~chl_3m, type = 'scatter', mode = 'lines',
-                name = 'Clorofila 3m', 
-                line = list(color = 'green', width = 2),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>Clorofila 3m: ", round(chl_3m, 2), "μg/L",
-                  "<br>Categoria: ", categoria_chl_3m
-                )) %>%
-      add_trace(y = ~chl_4m, type = 'scatter', mode = 'lines',
-                name = 'Clorofila 4.5m', 
-                line = list(color = 'darkgreen', width = 2, dash = 'dash'),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>Clorofila 4.5m: ", round(chl_4m, 2), "μg/L",
-                  "<br>Categoria: ", categoria_chl_4m
-                )) %>%
+    ultima_linha <- valores$dados_processados %>%
+      arrange(desc(data_hora)) %>%
+      slice(1)
+    
+    mensagem <- gerar_mensagem_qualidade(
+      ultima_linha$do_3m,
+      ultima_linha$chl_3m,
+      ultima_linha$temp_3m
+    )
+    
+    div(
+      style = paste0(
+        "padding:15px;",
+        "border-radius:10px;",
+        "background-color:", mensagem$cor, ";",
+        "color:white;",
+        "font-size:18px;",
+        "font-weight:bold;"
+      ),
+      
+      HTML(mensagem$texto)
+    )
+  })
+  
+  # Gráfico de série temporal única
+  output$grafico_serie_unica <- renderPlotly({
+    req(valores$dados_processados)
+    
+    dados_filtrados <- valores$dados_processados %>%
+      filter(data_hora >= input$data_inicio & data_hora <= input$data_fim + days(1))
+    
+    if (nrow(dados_filtrados) == 0) {
+      return(plotly_empty())
+    }
+    
+    variavel_selecionada <- input$variavel_serie
+    titulo_grafico <- switch(
+      variavel_selecionada,
+      "chl_3m" = "Clorofila 3.0m",
+      "chl_4m" = "Clorofila 4.5m",
+      "temp_1m" = "Temperatura 1.0m",
+      "temp_3m" = "Temperatura 3.0m",
+      "do_1m" = "Oxigênio Dissolvido 1.0m",
+      "do_3m" = "Oxigênio Dissolvido 3.0m",
+      "cond_1m" = "Condutividade 1.0m",
+      "cond_3m" = "Condutividade 3.0m",
+      "PAR" = "Radiação PAR",
+      "Variável Desconhecida"
+    )
+    
+    unidade_eixo_y <- switch(
+      variavel_selecionada,
+      "chl_3m" = "μg/L",
+      "chl_4m" = "μg/L",
+      "temp_1m" = "°C",
+      "temp_3m" = "°C",
+      "do_1m" = "ml/L",
+      "do_3m" = "ml/L",
+      "cond_1m" = "μS/cm",
+      "cond_3m" = "μS/cm",
+      "PAR" = "μE",
+      ""
+    )
+    
+    plot_ly(dados_filtrados, x = ~data_hora, y = ~get(variavel_selecionada), type = 'scatter', mode = 'lines', 
+            name = titulo_grafico,
+            line = list(color = 'blue', width = 2),
+            hoverinfo = 'text',
+            text = ~paste(
+              "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
+              "<br>", titulo_grafico, ": ", round(get(variavel_selecionada), 2), " ", unidade_eixo_y
+            )) %>%
       layout(
-        title = "Evolução da Clorofila",
+        title = paste("Série Temporal de", titulo_grafico),
         xaxis = list(title = "Data/Hora"),
-        yaxis = list(title = "Clorofila (μg/L)"),
+        yaxis = list(title = paste(titulo_grafico, "(", unidade_eixo_y, ")")),
         hovermode = 'closest',
-        legend = list(orientation = "h", x = 0, y = -0.2),
         margin = list(l = 60, r = 40, t = 60, b = 60)
       )
   })
   
-  output$info_serie <- renderText({
+  output$info_serie_unica <- renderText({
     if (!is.null(valores$dados_processados)) {
-      paste("Dados reais da API SIMCOSTA -", 
+      paste("Dados reais da API SIMCOSTA - ", 
             nrow(valores$dados_processados), "registros -",
             "Período:", format(min(valores$dados_processados$data_hora, na.rm = TRUE), "%d/%m/%Y"),
             "a", format(max(valores$dados_processados$data_hora, na.rm = TRUE), "%d/%m/%Y"))
@@ -909,154 +833,7 @@ server <- function(input, output, session) {
     }
   })
   
-  # Gráfico de temperatura
-  output$grafico_temp <- renderPlotly({
-    req(valores$dados_processados)
-    
-    plot_ly(valores$dados_processados, x = ~data_hora) %>%
-      add_trace(y = ~temp_1m, type = 'scatter', mode = 'lines',
-                name = 'Temp 1m', 
-                line = list(color = 'red', width = 2),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>Temp 1m: ", round(temp_1m, 1), "°C"
-                )) %>%
-      add_trace(y = ~temp_3m, type = 'scatter', mode = 'lines',
-                name = 'Temp 3m', 
-                line = list(color = 'orange', width = 2, dash = 'dash'),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>Temp 3m: ", round(temp_3m, 1), "°C"
-                )) %>%
-      layout(
-        title = "Evolução da Temperatura",
-        xaxis = list(title = "Data/Hora"),
-        yaxis = list(title = "Temperatura (°C)"),
-        hovermode = 'closest',
-        margin = list(l = 60, r = 40, t = 60, b = 60)
-      )
-  })
-  
-  # Gráfico de oxigênio dissolvido (convertido) COM CLASSIFICAÇÃO
-  output$grafico_do <- renderPlotly({
-    req(valores$dados_processados)
-    
-    plot_ly(valores$dados_processados, x = ~data_hora) %>%
-      add_trace(y = ~do_1m, type = 'scatter', mode = 'lines',
-                name = 'OD 1m', 
-                line = list(color = 'blue', width = 2),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>OD 1m: ", round(do_1m, 3), "ml/L",
-                  "<br>Categoria: ", categoria_do_1m
-                )) %>%
-      add_trace(y = ~do_3m, type = 'scatter', mode = 'lines',
-                name = 'OD 3m', 
-                line = list(color = 'lightblue', width = 2, dash = 'dash'),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>OD 3m: ", round(do_3m, 3), "ml/L",
-                  "<br>Categoria: ", categoria_do_3m
-                )) %>%
-      layout(
-        title = "Evolução do Oxigênio Dissolvido (ml/L)",
-        xaxis = list(title = "Data/Hora"),
-        yaxis = list(title = "OD (ml/L)"),
-        hovermode = 'closest',
-        margin = list(l = 60, r = 40, t = 60, b = 60)
-      )
-  })
-  
-  # Gráfico de condutividade
-  output$grafico_cond <- renderPlotly({
-    req(valores$dados_processados)
-    
-    plot_ly(valores$dados_processados, x = ~data_hora) %>%
-      add_trace(y = ~cond_1m, type = 'scatter', mode = 'lines',
-                name = 'Cond 1m', 
-                line = list(color = 'purple', width = 2),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>Condutividade 1m: ", round(cond_1m, 0), "μS/cm"
-                )) %>%
-      add_trace(y = ~cond_3m, type = 'scatter', mode = 'lines',
-                name = 'Cond 3m', 
-                line = list(color = 'violet', width = 2, dash = 'dash'),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>Condutividade 3m: ", round(cond_3m, 0), "μS/cm"
-                )) %>%
-      layout(
-        title = "Evolução da Condutividade",
-        xaxis = list(title = "Data/Hora"),
-        yaxis = list(title = "Condutividade (μS/cm)"),
-        hovermode = 'closest',
-        margin = list(l = 60, r = 40, t = 60, b = 60)
-      )
-  })
-  
-  # Gráfico de PAR
-  output$grafico_par <- renderPlotly({
-    req(valores$dados_processados)
-    
-    plot_ly(valores$dados_processados, x = ~data_hora) %>%
-      add_trace(y = ~PAR, type = 'scatter', mode = 'lines',
-                name = 'PAR', 
-                line = list(color = 'gold', width = 2),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>PAR: ", round(PAR, 0), "μE"
-                )) %>%
-      layout(
-        title = "Evolução da Radiação PAR",
-        xaxis = list(title = "Data/Hora"),
-        yaxis = list(title = "PAR (μE)"),
-        hovermode = 'closest',
-        margin = list(l = 60, r = 40, t = 60, b = 60)
-      )
-  })
-  
-  # Gráfico detalhado do oxigênio dissolvido COM CLASSIFICAÇÃO
-  output$grafico_do_detalhado <- renderPlotly({
-    req(valores$dados_processados)
-    
-    plot_ly(valores$dados_processados, x = ~data_hora) %>%
-      add_trace(y = ~do_1m, type = 'scatter', mode = 'lines+markers',
-                name = 'OD 1.0m', 
-                line = list(color = 'blue', width = 2),
-                marker = list(size = 4, color = 'blue'),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>OD 1.0m: ", round(do_1m, 3), "ml/L",
-                  "<br>Categoria: ", categoria_do_1m
-                )) %>%
-      add_trace(y = ~do_3m, type = 'scatter', mode = 'lines+markers',
-                name = 'OD 3.0m', 
-                line = list(color = 'lightblue', width = 2),
-                marker = list(size = 4, color = 'lightblue'),
-                hoverinfo = 'text',
-                text = ~paste(
-                  "Data: ", format(data_hora, "%d/%m/%Y %H:%M"),
-                  "<br>OD 3.0m: ", round(do_3m, 3), "ml/L",
-                  "<br>Categoria: ", categoria_do_3m
-                )) %>%
-      layout(
-        title = "Série Temporal Detalhada do Oxigênio Dissolvido",
-        xaxis = list(title = "Data/Hora"),
-        yaxis = list(title = "OD (ml/L)"),
-        hovermode = 'closest',
-        legend = list(orientation = "h", x = 0, y = -0.2),
-        margin = list(l = 60, r = 40, t = 60, b = 60)
-      )
-  })
+
   
   # Tabela de dados COM STATUS PARA CLOROFILA E OXIGÊNIO
   output$tabela_dados <- renderDT({
@@ -1077,33 +854,43 @@ server <- function(input, output, session) {
         PAR = round(PAR, 0),
         # Fatores para ordenação
         categoria_chl_3m = factor(categoria_chl_3m, 
-                                  levels = c("Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto")),
+                                  levels = c("Ruim", "Atenção", "Boa")),
         categoria_do_3m = factor(categoria_do_3m,
-                                 levels = c("Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto")),
+                                 levels = c("Ruim", "Atenção", "Boa")),
+        categoria_temp_3m = factor(categoria_temp_3m,
+                                   levels = c("Ruim", "Atenção", "Boa")),
         # Status HTML para clorofila
         status_chl = case_when(
-          categoria_chl_3m == "Muito Alto" ~ '<span class="badge bg-danger">MUITO ALTO</span>',
-          categoria_chl_3m == "Alto" ~ '<span class="badge bg-warning">ALTO</span>',
-          categoria_chl_3m == "Moderado" ~ '<span class="badge bg-info">MODERADO</span>',
-          categoria_chl_3m == "Baixo" ~ '<span class="badge bg-success">BAIXO</span>',
-          categoria_chl_3m == "Muito Baixo" ~ '<span class="badge bg-secondary">MUITO BAIXO</span>',
+          categoria_chl_3m == "Ruim" ~ '<span class="badge bg-danger">RUIM</span>',
+          categoria_chl_3m == "Atenção" ~ '<span class="badge bg-warning">ATENÇÃO</span>',
+          categoria_chl_3m == "Boa" ~ '<span class="badge bg-success">BOA</span>',
           TRUE ~ '<span class="badge bg-secondary">N/A</span>'
         ),
         # Status HTML para oxigênio
         status_do = case_when(
-          categoria_do_3m == "Muito Alto" ~ '<span class="badge bg-danger">MUITO ALTO</span>',
-          categoria_do_3m == "Alto" ~ '<span class="badge bg-warning">ALTO</span>',
-          categoria_do_3m == "Moderado" ~ '<span class="badge bg-info">MODERADO</span>',
-          categoria_do_3m == "Baixo" ~ '<span class="badge bg-success">BAIXO</span>',
-          categoria_do_3m == "Muito Baixo" ~ '<span class="badge bg-secondary">MUITO BAIXO</span>',
-          TRUE ~ '<span class="badge bg-secondary">N/A</span>'
+          categoria_do_3m == "Ruim" ~ '<span class="badge bg-danger">RUIM</span>',
+          categoria_do_3m == "Atenção" ~ '<span class="badge bg-warning">ATENÇÃO</span>',
+          categoria_do_3m == "Boa" ~ '<span class="badge bg-success">BOA</span>',
+                    TRUE ~ 
+'<span class="badge bg-secondary">N/A</span>'
+        ),
+        # Status HTML para temperatura
+        status_temp = case_when(
+          categoria_temp_3m == "Ruim" ~ 
+'<span class="badge bg-danger">RUIM</span>',
+          categoria_temp_3m == "Atenção" ~ 
+'<span class="badge bg-warning">ATENÇÃO</span>',
+          categoria_temp_3m == "Boa" ~ 
+'<span class="badge bg-success">BOA</span>',
+          TRUE ~ 
+'<span class="badge bg-secondary">N/A</span>'
         )
       ) %>%
       select(data_hora, 
              chl_3m, categoria_chl_3m, status_chl,
              do_3m, categoria_do_3m, status_do,
-             chl_4m, temp_1m, temp_3m, 
-             do_1m, cond_1m, cond_3m, PAR)
+             temp_3m, categoria_temp_3m, status_temp,
+             chl_4m, temp_1m, do_1m, cond_1m, cond_3m, PAR)
     
     datatable(
       dados_tabela,
@@ -1131,34 +918,18 @@ server <- function(input, output, session) {
     cat("  Total:  ", nrow(valores$dados_processados), "registros\n\n")
     
     # Clorofila 3.0m
-    media_chl_3m <- mean(valores$dados_processados$chl_3m, na.rm = TRUE)
-    dp_chl_3m <- sd(valores$dados_processados$chl_3m, na.rm = TRUE)
     cat("Clorofila a 3.0m:\n")
-    cat("  Média:    ", round(media_chl_3m, 2), "μg/L\n")
+    cat("  Média:    ", round(mean(valores$dados_processados$chl_3m, na.rm = TRUE), 2), "μg/L\n")
     cat("  Mediana:  ", round(median(valores$dados_processados$chl_3m, na.rm = TRUE), 2), "μg/L\n")
     cat("  Mínimo:   ", round(min(valores$dados_processados$chl_3m, na.rm = TRUE), 2), "μg/L\n")
-    cat("  Máximo:   ", round(max(valores$dados_processados$chl_3m, na.rm = TRUE), 2), "μg/L\n")
-    cat("  Desvio:   ", round(dp_chl_3m, 2), "μg/L\n")
-    cat("  Média - 2DP: ", round(media_chl_3m - 2*dp_chl_3m, 2), "μg/L (Muito Baixo até aqui)\n")
-    cat("  Média - DP:  ", round(media_chl_3m - dp_chl_3m, 2), "μg/L (Baixo até aqui)\n")
-    cat("  Média + DP:  ", round(media_chl_3m + dp_chl_3m, 2), "μg/L (Moderado até aqui)\n")
-    cat("  Média + 2DP: ", round(media_chl_3m + 2*dp_chl_3m, 2), "μg/L (Alto até aqui)\n")
-    cat("  Acima: Muito Alto\n\n")
+    cat("  Máximo:   ", round(max(valores$dados_processados$chl_3m, na.rm = TRUE), 2), "μg/L\n\n")
     
     # Oxigênio Dissolvido 3.0m
-    media_do_3m <- mean(valores$dados_processados$do_3m, na.rm = TRUE)
-    dp_do_3m <- sd(valores$dados_processados$do_3m, na.rm = TRUE)
     cat("Oxigênio Dissolvido a 3.0m (ml/L):\n")
-    cat("  Média:    ", round(media_do_3m, 3), "ml/L\n")
+    cat("  Média:    ", round(mean(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n")
     cat("  Mediana:  ", round(median(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n")
     cat("  Mínimo:   ", round(min(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n")
-    cat("  Máximo:   ", round(max(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n")
-    cat("  Desvio:   ", round(dp_do_3m, 3), "ml/L\n")
-    cat("  Média - 2DP: ", round(media_do_3m - 2*dp_do_3m, 3), "ml/L (Muito Baixo até aqui)\n")
-    cat("  Média - DP:  ", round(media_do_3m - dp_do_3m, 3), "ml/L (Baixo até aqui)\n")
-    cat("  Média + DP:  ", round(media_do_3m + dp_do_3m, 3), "ml/L (Moderado até aqui)\n")
-    cat("  Média + 2DP: ", round(media_do_3m + 2*dp_do_3m, 3), "ml/L (Alto até aqui)\n")
-    cat("  Acima: Muito Alto\n\n")
+    cat("  Máximo:   ", round(max(valores$dados_processados$do_3m, na.rm = TRUE), 3), "ml/L\n\n")
     
     # Clorofila 4.5m
     media_chl_4m <- mean(valores$dados_processados$chl_4m, na.rm = TRUE)
@@ -1182,9 +953,9 @@ server <- function(input, output, session) {
     cat("  Máximo:   ", round(max(valores$dados_processados$temp_3m, na.rm = TRUE), 1), "°C\n\n")
     
     # Classificação da Clorofila 3.0m
-    cat("Classificação da Clorofila 3.0m (baseado em desvio padrão):\n")
+    cat("Classificação da Clorofila 3.0m (baseado em thresholds ambientais):\n")
     categorias_chl <- table(valores$dados_processados$categoria_chl_3m)
-    for (cat in c("Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto")) {
+    for (cat in c("Ruim", "Atenção", "Boa")) {
       if (cat %in% names(categorias_chl)) {
         cat(sprintf("  %-12s: %4d registros (%5.1f%%)\n", 
                     cat, 
@@ -1197,9 +968,9 @@ server <- function(input, output, session) {
     cat("\n")
     
     # Classificação do Oxigênio Dissolvido 3.0m
-    cat("Classificação do Oxigênio Dissolvido 3.0m (baseado em desvio padrão):\n")
+    cat("Classificação do Oxigênio Dissolvido 3.0m (baseado em thresholds ambientais):\n")
     categorias_do <- table(valores$dados_processados$categoria_do_3m)
-    for (cat in c("Muito Baixo", "Baixo", "Moderado", "Alto", "Muito Alto")) {
+    for (cat in c("Ruim", "Atenção", "Boa")) {
       if (cat %in% names(categorias_do)) {
         cat(sprintf("  %-12s: %4d registros (%5.1f%%)\n", 
                     cat, 
@@ -1211,66 +982,11 @@ server <- function(input, output, session) {
     }
   })
   
-  # Histograma da clorofila 3m - VERSÃO CORRIGIDA
-  output$grafico_hist_chl <- renderPlotly({
-    req(valores$dados_processados)
-    criar_histograma(valores$dados_processados, "chl_3m", "Clorofila 3.0m", 
-                     'rgba(100, 200, 102, 0.7)', "μg/L")
-  })
+
   
-  output$info_hist_chl <- renderText({
-    req(valores$dados_processados)
-    
-    media_chl <- mean(valores$dados_processados$chl_3m, na.rm = TRUE)
-    dp_chl <- sd(valores$dados_processados$chl_3m, na.rm = TRUE)
-    
-    paste("Classificação: Valores < ", round(media_chl - 2*dp_chl, 2), " = Muito Baixo | ",
-          round(media_chl - 2*dp_chl, 2), " a ", round(media_chl - dp_chl, 2), " = Baixo | ",
-          round(media_chl - dp_chl, 2), " a ", round(media_chl + dp_chl, 2), " = Moderado | ",
-          round(media_chl + dp_chl, 2), " a ", round(media_chl + 2*dp_chl, 2), " = Alto | ",
-          "> ", round(media_chl + 2*dp_chl, 2), " = Muito Alto")
-  })
+
   
-  # Histograma detalhado do oxigênio dissolvido (3.0m) - VERSÃO CORRIGIDA
-  output$grafico_hist_do_detalhado <- renderPlotly({
-    req(valores$dados_processados)
-    criar_histograma(valores$dados_processados, "do_3m", "Oxigênio Dissolvido 3.0m", 
-                     'rgba(52, 152, 219, 0.7)', "ml/L")
-  })
-  
-  output$info_hist_do <- renderText({
-    req(valores$dados_processados)
-    
-    media_do <- mean(valores$dados_processados$do_3m, na.rm = TRUE)
-    dp_do <- sd(valores$dados_processados$do_3m, na.rm = TRUE)
-    
-    paste("Classificação OD: Valores < ", round(media_do - 2*dp_do, 3), " = Muito Baixo | ",
-          round(media_do - 2*dp_do, 3), " a ", round(media_do - dp_do, 3), " = Baixo | ",
-          round(media_do - dp_do, 3), " a ", round(media_do + dp_do, 3), " = Moderado | ",
-          round(media_do + dp_do, 3), " a ", round(media_do + 2*dp_do, 3), " = Alto | ",
-          "> ", round(media_do + 2*dp_do, 3), " = Muito Alto")
-  })
-  
-  # Histograma da condutividade (3.0m) - VERSÃO CORRIGIDA
-  output$grafico_hist_cond <- renderPlotly({
-    req(valores$dados_processados)
-    criar_histograma(valores$dados_processados, "cond_3m", "Condutividade 3.0m", 
-                     'rgba(155, 89, 182, 0.7)', "μS/cm")
-  })
-  
-  # Histograma da temperatura (3.0m) - VERSÃO CORRIGIDA
-  output$grafico_hist_temp <- renderPlotly({
-    req(valores$dados_processados)
-    criar_histograma(valores$dados_processados, "temp_3m", "Temperatura 3.0m", 
-                     'rgba(231, 76, 60, 0.7)', "°C")
-  })
-  
-  # Histograma do PAR - VERSÃO CORRIGIDA
-  output$grafico_hist_par <- renderPlotly({
-    req(valores$dados_processados)
-    criar_histograma(valores$dados_processados, "PAR", "PAR", 
-                     'rgba(241, 196, 15, 0.7)', "μE")
-  })
+
   
   # MODIFICAÇÃO: Matriz de correlação com fonte maior
   output$matriz_correlacao <- renderPlot({

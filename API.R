@@ -3,10 +3,9 @@ library(httr2)
 library(jsonlite)
 library(tidyverse)
 
-# URL corrigida - note que os timestamps precisam ser válidos
-# Vou usar um período recente
+
 time2 <- as.numeric(Sys.time())  # agora
-time1 <- time2 - (60 * 24 * 3600)  # 30 dias atrás
+time1 <- time2 - (365 * 24 * 3600)  # 365 dias atrás
 
 # Construir URL corretamente
 url <- sprintf(
