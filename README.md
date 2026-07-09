@@ -14,6 +14,8 @@ Dashboard Shiny para monitoramento da qualidade da água da Lagoa da Conceição
 
 **App online:** https://marciocure.shinyapps.io/monitoralagoa/
 
+![](copia_tela1.png)
+
 Estrutura de Arquivos
 
     app.R - Código principal do Shiny
